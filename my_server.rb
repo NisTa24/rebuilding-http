@@ -15,4 +15,7 @@ loop do
 
   client.write resp.to_s
   client.close
+rescue StandardError
+  puts 'Read error!'
+  next
 end
