@@ -1,12 +1,5 @@
 require 'socket'
 
-HELLO_WORLD_RESPONSE = <<~TEXT
-  HTTP/1.1 200 OK
-  Content-Type: text/plain
-
-  Hello World!
-TEXT
-
 module RHTTP
   def read_request(sock)
     out = ''
@@ -37,5 +30,29 @@ class RHTTP::Request
     @http_version = "#{::Regexp.last_match(1)}.#{::Regexp.last_match(2)}" if rest =~ %r{HTTP/(\d+)\.(\d+)}
 
     @headers = lines[1..-1].join("\n")
+  end
+end
+
+class RHTTP::Response
+  def initialize(body,
+                 version: '1.1',
+                 status: 200,
+                 message: 'OK',
+                 headers: {})
+    @version = version
+    @status = status
+    @message = message
+    @headers = headers
+    @body = body
+  end
+
+  def to_s
+    <<~RESPONSE
+      HTTP/#{@version} #{@status} #{@message}\r
+      Content-Type: text/html\r
+      #{@headers.map { |k, v| "#{k}: #{v}" }.join("\r\n")}
+      \r
+      #{@body}
+    RESPONSE
   end
 end
