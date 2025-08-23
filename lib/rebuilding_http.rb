@@ -4,7 +4,7 @@ HELLO_WORLD_RESPONSE = <<~TEXT
   HTTP/1.1 200 OK
   Content-Type: text/plain
 
-  Hello From a Library, World!
+  Hello World!
 TEXT
 
 module RHTTP
