@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 require 'socket'
 
 HELLO_WORLD_RESPONSE = <<~TEXT
