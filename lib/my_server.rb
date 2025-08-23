@@ -4,7 +4,7 @@ RESP = <<~TEXT
   HTTP/1.1 200 OK
   Content-Type: text/plain
 
-  Hello Again World!
+  Hello From a Library, World!
 TEXT
 
 server = TCPServer.new 4321
