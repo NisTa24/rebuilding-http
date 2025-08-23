@@ -42,7 +42,10 @@ class RHTTP::Response
     @version = version
     @status = status
     @message = message
-    @headers = headers
+    headers.each do |k, v|
+      @headers[k.to_s.downcase] = v
+    end
+    @headers['date'] = Time.now
     @body = body
   end
 
