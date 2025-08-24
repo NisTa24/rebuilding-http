@@ -65,3 +65,22 @@ class BatChest::Response
     lines.join("\r\n")
   end
 end
+
+module BatChest::DSL
+  def get(route, &handler)
+    @routes ||= []
+    @routes << [route, handler]
+  end
+
+  def match(url)
+    _, h = @routes.detect { |route, _| url[route] }
+
+    if h
+      BatChest::Response.new(h.call)
+    else
+      BatChest::Response.new("",
+                             status: 404,
+                             message: "No route found")
+    end
+  end
+end
