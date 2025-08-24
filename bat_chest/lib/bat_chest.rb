@@ -43,3 +43,25 @@ class BatChest::Request
     end
   end
 end
+
+class BatChest::Response
+  def initialize(body,
+                 version: "1.1",
+                 status: 200,
+                 message: "OK",
+                 headers: {})
+    @version = version
+    @status = status
+    @message = message
+    @headers = headers
+    @body = body
+  end
+
+  def to_s
+    lines = [
+      "HTTP/#{@version} #{@status} #{@message}"
+    ] + @headers.map { |k, v| "#{k}: #{v}" } + ["", @body, ""]
+
+    lines.join("\r\n")
+  end
+end
