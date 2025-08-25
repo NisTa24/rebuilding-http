@@ -9,7 +9,9 @@ module BatChest
 end
 
 class BatChest::Request
-  attr_reader :url
+  attr_reader :url, :method, :body, :form_data, :headers
+
+  URLENCODED = "application/x-www-form-urlencoded"
 
   def initialize(socket)
     parse_req socket.gets
@@ -23,6 +25,18 @@ class BatChest::Request
     end
 
     parse_headers(head)
+
+    return unless @headers["content-type"] == URLENCODED
+
+    len = @headers["content-length"]
+    if len
+      @body = socket.read(len.to_i)
+    else
+      error = BatChest::ParseError
+      raise error.new("Need length for data!")
+    end
+
+    parse_form_body(@body)
   end
 
   def parse_req(line)
@@ -41,6 +55,19 @@ class BatChest::Request
       field, value = line.split(":", 2)
       @headers[field.downcase] = value.strip
     end
+  end
+
+  def parse_form_body(body)
+    data = {}
+
+    body.split(/[;&]/).each do |kv|
+      next if kv.empty?
+
+      key, val = kv.split("=", 2)
+      data[key] = val
+    end
+
+    @form_data = data
   end
 end
 
@@ -67,20 +94,41 @@ class BatChest::Response
 end
 
 module BatChest::DSL
-  def get(route, &handler)
+  def match_route(route, method: :get, &handler)
     @routes ||= []
-    @routes << [route, handler]
+    case route
+    when String
+      p = proc { |u| u.start_with?(route) }
+    when Regexp
+      p = proc { |u| u.match?(route) }
+    else
+      raise BatChest::ParseError.new("Unexpected route!")
+    end
+
+    @routes << [p, method, handler]
   end
 
-  def match(url)
-    _, h = @routes.detect { |route, _| url[route] }
+  def get(route, &handler)
+    match_route(route, method: :get, &handler)
+  end
+
+  def post(route, &handler)
+    match_route(route, method: :post, &handler)
+  end
+
+  def match(request)
+    url = request.url
+    method = request.method.downcase.to_sym
+    _, _, h = @routes.detect do |p, m, _|
+      m == method && p[url]
+    end
 
     if h
-      BatChest::Response.new(h.call)
+      body = request.instance_eval(&h)
+      BatChest::Response.new(body, headers: { 'content-type': "text/html" })
     else
-      BatChest::Response.new("",
-                             status: 404,
-                             message: "No route found")
+      puts "No match"
+      BatChest::Response.new("", status: 404, message: "No route found")
     end
   end
 end

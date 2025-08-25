@@ -8,7 +8,7 @@ at_exit do
   loop do
     client = server.accept
     req = BatChest::Request.new(client)
-    resp = RUBY_MAIN.match(req.url)
+    resp = RUBY_MAIN.match(req)
     client.write resp.to_s
     client.close
   rescue StandardError
