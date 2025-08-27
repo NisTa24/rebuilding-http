@@ -64,10 +64,16 @@ class BatChest::Request
       next if kv.empty?
 
       key, val = kv.split("=", 2)
-      data[key] = val
+      data[form_unesc(key)] = form_unesc(val)
     end
 
     @form_data = data
+  end
+
+  def form_unesc(str)
+    str = str.gsub("+", " ")
+    str.gsub!(/%([0-9a-fA-F]{2})/) { ::Regexp.last_match(1).hex.chr }
+    str
   end
 end
 
