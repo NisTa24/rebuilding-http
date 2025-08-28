@@ -138,3 +138,43 @@ module BatChest::DSL
     end
   end
 end
+
+class BatChest::Server
+  NUM_THREADS = 10
+  MAX_WAITING = 20
+
+  def initialize(port)
+    @server = TCPServer.new(port)
+    @queue = Thread::Queue.new
+    @pool = (1..NUM_THREADS).map do
+      Thread.new { worker_loop }
+    end
+    @resp_full = BatChest::Response.new("", status: 503, message: "Server too busy!")
+  end
+
+  def start
+    loop do
+      client = @server.accept
+      if @queue.num_waiting < MAX_WAITING
+        @queue.push(client)
+      else
+        client.write(@resp_full.to_s)
+        client.close
+      end
+    end
+  end
+
+  def worker_loop
+    loop do
+      client = @queue.pop
+
+      req = BatChest::Request.new(client)
+      resp = RUBY_MAIN.match(req)
+      client.write resp.to_s
+      client.close
+    rescue StandardError
+      puts "Read error! #{$!.inspect}"
+      next
+    end
+  end
+end
