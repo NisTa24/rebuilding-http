@@ -28,17 +28,26 @@ class BatChest::Request
 
     parse_headers(head)
 
-    return unless @headers["content-type"] == URLENCODED
+    if @headers["content-type"] == URLENCODED
+      len = @headers["content-length"]
+      if len
+        @body = socket.read(len.to_i)
+      else
+        error = BatChest::ParseError
+        raise error.new("Need length for data!")
+      end
 
-    len = @headers["content-length"]
-    if len
-      @body = socket.read(len.to_i)
-    else
-      error = BatChest::ParseError
-      raise error.new("Need length for data!")
+      parse_form_body(@body)
+    elsif @headers["content-type"] == "application/octet-stream"
+      len = @headers["content-length"]
+
+      if len
+        @body = socket.read(len.to_i)
+      else
+        error = BatChest::ParseError
+        raise error.new("Need length for data!")
+      end
     end
-
-    parse_form_body(@body)
   end
 
   def parse_req(line)
