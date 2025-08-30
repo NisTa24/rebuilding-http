@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require "socket"
+require "rack"
+require "stringio"
 require_relative "bat_chest/version"
 
 module BatChest
@@ -75,6 +77,34 @@ class BatChest::Request
     str.gsub!(/%([0-9a-fA-F]{2})/) { ::Regexp.last_match(1).hex.chr }
     str
   end
+
+  def env
+    body = (@body || String.new).encode(Encoding::ASCII_8BIT)
+    path, query = @url.split("?", 2)
+    env = {
+      "REQUEST_METHOD" => @method,
+      "SCRIPT_NAME" => "",
+      "PATH_INFO" => path,
+      "QUERY_STRING" => query || "",
+      "SERVER_NAME" => "localhost",
+      "SERVER_PORT" => "4444",
+
+      # Rack-specific environment
+      "rack.version" => Rack::VERSION,
+      "rack.url_scheme" => "http",
+      "rack.input" => StringIO.new(body),
+      "rack.errors" => STDERR,
+      "rack.multithread" => true,
+      "rack.multiprocess" => false,
+      "rack.run_once" => false,
+      "rack.logger" => nil
+    }
+    @headers.each do |k, v|
+      name = "HTTP_" + k.gsub("-", "_").upcase
+      env[name] = v
+    end
+    env
+  end
 end
 
 class BatChest::Response
@@ -143,9 +173,11 @@ class BatChest::Server
   NUM_THREADS = 10
   MAX_WAITING = 20
 
-  def initialize(port)
+  def initialize(port, app)
     @server = TCPServer.new(port)
     @queue = Thread::Queue.new
+    @app = app
+    @port = port
     @pool = (1..NUM_THREADS).map do
       Thread.new { worker_loop }
     end
@@ -169,7 +201,13 @@ class BatChest::Server
       client = @queue.pop
 
       req = BatChest::Request.new(client)
-      resp = RUBY_MAIN.match(req)
+      status, headers, app_body = @app.call(req.env)
+      b_text = String.new
+
+      app_body.each { |text| b_text.concat(text) }
+
+      resp = BatChest::Response.new(b_text, status:, headers:)
+
       client.write resp.to_s
       client.close
     rescue StandardError
