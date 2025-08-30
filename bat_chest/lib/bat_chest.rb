@@ -41,10 +41,13 @@ class BatChest::Request
     elsif @headers["content-type"] == "application/octet-stream"
       len = @headers["content-length"]
 
-      if len
+      if len && len < 1_048_576
         @body = socket.read(len.to_i)
       else
         error = BatChest::ParseError
+
+        raise error.new("Request is too large!") if len > 1_048_576
+
         raise error.new("Need length for data!")
       end
     end
